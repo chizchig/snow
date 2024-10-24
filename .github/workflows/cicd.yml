@@ -247,12 +247,6 @@ jobs:
         kubectl apply -f overlay/dev/argocd.yml
         
         echo "Application manifest applied. Check the ArgoCD UI for sync status."
-
-        - name: 'Apply Application Manifest'
-        run: |
-          echo "Applying ArgoCD application from repository..."
-          kubectl apply -f overlay/dev/argocd.yml
-          echo "Application manifest applied. Check the ArgoCD UI for sync status."
   
     - name: 'Setup Auto Access'
       run: |
