@@ -1,0 +1,13 @@
+apiVersion: v1 
+kind: Service 
+metadata:
+  namespace: dev
+  name: enaj-service 
+spec:
+  selector:
+    app: enaj-app
+  ports:
+    - name: http
+      port: 8089
+      targetPORT: 8080
+      protocol: TCP 

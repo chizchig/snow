@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  namespace: dev
+  name: enaj
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enaj-app
+  strategy:
+    type: RollingUpdate
+    RollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+         app: enaj-app
+    spec:
+      serviceAccountName: enaj-service-account
+      imagePullSecrets:
+        - name: enaj-app-access-token
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: rave
+          image: alpine:latest
+          imagePullSecrets: Always
+          ports:
+           - containerPort: 8089
+          volumeMounts:
+            - name: alpine-cache
+              mountPath: /var/cache/alpine
+              : false 
+          securityContext: 
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true 
+            readOnlyFileSystem: true 
+            capabilities:
+             drop:
+              - ALL
+          resources:
+            limits:
+              cpu: 10m
+              memory: 1Gi
+            requests:
+              cpu: 2m
+              memory: 512Mi
+      volumes:
+        - name: alpine-cache
+          emptyDir: {}  
+        - name: alpine-storage
+          emptyDir: {}
+          
