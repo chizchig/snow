@@ -55,9 +55,9 @@ jobs:
         - name: 'Verify Kubernetes Context'
           run: kubectl config current-context
 
-        - name: 'Apply Kustomization'
-          run: |
-              kubectl apply -k ./overlay/dev
+        # - name: 'Apply Kustomization'
+        #   run: |
+        #       kubectl apply -k ./overlay/dev
 
         - name: Install ArgoCD
           run: |
