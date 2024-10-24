@@ -6,3 +6,5 @@ resources:
 replicas:
   - name: enaj
     count: 3
+
+namespace: dev
