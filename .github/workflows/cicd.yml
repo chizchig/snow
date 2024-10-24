@@ -95,6 +95,17 @@ jobs:
       run: |
         kubectl get deployments -n argocd -o jsonpath='{.items[*].spec.template.spec.containers[*].image}' | tr -s '[[:space:]]' '\n' | sort | uniq
 
+        - name: 'Get ArgoCD URL and Credentials'
+        run: |
+          # Wait for LoadBalancer to get external IP
+          echo "Waiting for LoadBalancer IP..."
+          sleep 30
+          
+          # Get ArgoCD URL
+          ARGOCD_HOST=$(minikube service argocd-server -n argocd --url | head -n 1)
+          echo "ArgoCD URL: $ARGOCD_HOST"
+          echo "ARGOCD_HOST=$ARGOCD_HOST" >> $GITHUB_ENV
+
     - name: 'Get ArgoCD admin password'
       run: |
         # Wait for secret to be available
@@ -107,3 +118,14 @@ jobs:
       run: |
         echo "Verifying ArgoCD installation..."
         kubectl get all -n argocd
+
+        echo "ArgoCD Access Information:"
+        echo "URL: $(minikube service argocd-server -n argocd --url)"
+        echo "Username: admin"
+        echo "Password: $ARGO_PWD"
+
+    - name: 'Port Forward ArgoCD'
+      run: |
+        echo "Setting up port forward for ArgoCD..."
+        kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+        echo "ArgoCD is also accessible at: https://localhost:8080"
