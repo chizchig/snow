@@ -11,7 +11,7 @@ spec:
     path: resource/dev
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: argocd-namespace
+    namespace: dev-namespace
   syncPolicy:
     automated:
       selfHeal: true
