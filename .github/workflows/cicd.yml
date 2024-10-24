@@ -19,7 +19,7 @@ jobs:
 
     steps:
     - name: 'Checkout'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: 'Verify System Architecture'
       run: |
@@ -110,6 +110,12 @@ jobs:
         ARGO_PWD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
         echo "ArgoCD admin password: $ARGO_PWD"
         echo "ARGO_PWD=$ARGO_PWD" >> $GITHUB_ENV
+        
+        # Save access information to file
+        echo "ArgoCD Access Information:" > argocd-access.txt
+        echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
+        echo "Username: admin" >> argocd-access.txt
+        echo "Password: $ARGO_PWD" >> argocd-access.txt
 
     - name: 'Wait for ArgoCD Components'
       run: |
@@ -128,21 +134,9 @@ jobs:
         echo "Username: admin"
         echo "Password: $ARGO_PWD"
 
-    - name: 'Setup Port Forward'
-      run: |
-        echo "Setting up port forward for ArgoCD..."
-        nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-        echo "ArgoCD is accessible at: https://localhost:8080"
-        
-        # Save access information to file
-        echo "ArgoCD Access Information:" > argocd-access.txt
-        echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
-        echo "Local URL: https://localhost:8080" >> argocd-access.txt
-        echo "Username: admin" >> argocd-access.txt
-        echo "Password: $ARGO_PWD" >> argocd-access.txt
-
     - name: 'Upload Access Information'
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: argocd-access-info
         path: argocd-access.txt
+        retention-days: 5
