@@ -134,6 +134,19 @@ jobs:
         echo "Username: admin"
         echo "Password: $ARGO_PWD"
 
+    - name: 'Setup Port Forward'
+      run: |
+          echo "Setting up port forward for ArgoCD..."
+          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          echo "ArgoCD is accessible at: https://localhost:8080"
+          
+          # Save access information to file
+          echo "ArgoCD Access Information:" > argocd-access.txt
+          echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
+          echo "Local URL: https://localhost:8080" >> argocd-access.txt
+          echo "Username: admin" >> argocd-access.txt
+          echo "Password: $ARGO_PWD" >> argocd-access.txt
+
     - name: 'Upload Access Information'
       uses: actions/upload-artifact@v4
       with:
