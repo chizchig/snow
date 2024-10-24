@@ -89,77 +89,96 @@ jobs:
     - name: 'Configure ArgoCD'
       run: |
         echo "Configuring ArgoCD service..."
-        kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+        kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
 
     - name: 'Check ArgoCD Version'
       run: |
         kubectl get deployments -n argocd -o jsonpath='{.items[*].spec.template.spec.containers[*].image}' | tr -s '[[:space:]]' '\n' | sort | uniq
 
-    - name: 'Get ArgoCD URL and Credentials'
+    - name: 'Get Initial ArgoCD Password'
       run: |
-        # Wait for LoadBalancer to get external IP
-        echo "Waiting for LoadBalancer IP..."
+        echo "Retrieving ArgoCD initial password..."
+        
+        # Wait for secret to be available
+        echo "Waiting for secret to be created..."
         sleep 30
         
-        # Get ArgoCD URL
-        ARGOCD_HOST=$(minikube service argocd-server -n argocd --url | head -n 1)
-        echo "ArgoCD URL: $ARGOCD_HOST"
-        echo "ARGOCD_HOST=$ARGOCD_HOST" >> $GITHUB_ENV
-
+        # Verify secret exists
+        echo "Verifying secret existence..."
         kubectl get secret argocd-initial-admin-secret -n argocd
         
-        # Get admin password
-        ARGO_PWD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-        echo "ArgoCD admin password: $ARGO_PWD"
-        echo "ARGO_PWD=$ARGO_PWD" >> $GITHUB_ENV
+        # Get initial password
+        INITIAL_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
         
+        # Verify password was retrieved
+        if [ -z "$INITIAL_PASSWORD" ]; then
+          echo "Error: Failed to get initial password"
+          echo "Checking all secrets in argocd namespace..."
+          kubectl get secrets -n argocd
+          exit 1
+        fi
         
-        # Save access information to file
-        echo "ArgoCD Access Information:" > argocd-access.txt
-        echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
-        echo "Username: admin" >> argocd-access.txt
-        echo "Password: $ARGO_PWD" >> argocd-access.txt
-
-    # - name: 'Wait for ArgoCD Components'
-    #   run: |
-    #     echo "Waiting for ArgoCD components to be ready..."
-    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
+        # Display login information
+        echo "================================================"
+        echo "ArgoCD Login Information"
+        echo "================================================"
+        echo "Username: admin"
+        echo "Initial Password: $INITIAL_PASSWORD"
+        echo "================================================"
+        
+        # Save to environment
+        echo "ARGO_PWD=$INITIAL_PASSWORD" >> $GITHUB_ENV
 
     - name: 'Setup ArgoCD Access'
       run: |
-        # Change service type to NodePort for better access
-        kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
-        
-        # Get the NodePort
+        # Get NodePort
         NODE_PORT=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.spec.ports[0].nodePort}')
+        MINIKUBE_IP=$(minikube ip)
+        
+        # Set ArgoCD URL
+        ARGOCD_URL="https://$MINIKUBE_IP:$NODE_PORT"
+        echo "ARGOCD_URL=$ARGOCD_URL" >> $GITHUB_ENV
+        
+        echo "ArgoCD will be accessible at: $ARGOCD_URL"
         
         # Setup tunnel in background
         nohup minikube tunnel &
+        
+        # Setup port forward in background
+        nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 --address 0.0.0.0 &
+        
+        echo "ArgoCD is also accessible at: https://localhost:8080"
+        
+        # Allow time for port-forward to establish
+        sleep 10
 
     - name: 'Verify ArgoCD Installation'
       run: |
         echo "Verifying ArgoCD installation..."
         kubectl get all -n argocd
         
-        echo "ArgoCD Access Information:"
-        echo "URL: $(minikube service argocd-server -n argocd --url)"
-        echo "Username: admin"
-        echo "Password: $ARGO_PWD"
-
-    - name: 'Setup Port Forward'
-      run: |
-          echo "Setting up port forward for ArgoCD..."
-          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-          echo "ArgoCD is accessible at: https://localhost:8080"
-          
-          # Save access information to file
-          echo "ArgoCD Access Information:" > argocd-access.txt
-          echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
-          echo "Local URL: https://localhost:8080" >> argocd-access.txt
-          echo "Username: admin" >> argocd-access.txt
-          echo "Password: $ARGO_PWD" >> argocd-access.txt
+        # Save access information
+        cat << EOF > argocd-access.txt
+        ArgoCD Access Information:
+        -------------------------
+        1. NodePort URL: https://$(minikube ip):$NODE_PORT
+        2. Port Forward URL: https://localhost:8080
+        
+        Login Credentials:
+        -------------------------
+        Username: admin
+        Password: $ARGO_PWD
+        
+        Important Notes:
+        -------------------------
+        1. Use HTTPS, not HTTP
+        2. Accept the self-signed certificate in your browser
+        3. If one access method doesn't work, try the other
+        
+        Current Status:
+        -------------------------
+        $(kubectl get pods -n argocd)
+        EOF
 
     - name: 'Upload Access Information'
       uses: actions/upload-artifact@v4
@@ -167,3 +186,18 @@ jobs:
         name: argocd-access-info
         path: argocd-access.txt
         retention-days: 5
+
+    - name: 'Display Access Instructions'
+      run: |
+        echo "ArgoCD is now accessible via:"
+        echo "1. NodePort: https://$(minikube ip):$(kubectl get svc argocd-server -n argocd -o jsonpath='{.spec.ports[0].nodePort}')"
+        echo "2. Port Forward: https://localhost:8080"
+        echo ""
+        echo "Login Credentials:"
+        echo "Username: admin"
+        echo "Password: $ARGO_PWD"
+        echo ""
+        echo "Important Notes:"
+        echo "1. Use HTTPS, not HTTP"
+        echo "2. Accept the self-signed certificate warning"
+        echo "3. Password is case-sensitive"
