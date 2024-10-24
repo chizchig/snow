@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: trivial-dev
+  name: snow-dev
   namespace: dev
 spec:
   project: default
@@ -11,8 +11,12 @@ spec:
     path: overlay/dev
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: dev
+    namespace: argocd
   syncPolicy:
     automated:
       selfHeal: true
       prune: true
+    syncOptions:      
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
