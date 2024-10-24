@@ -117,12 +117,12 @@ jobs:
         echo "Username: admin" >> argocd-access.txt
         echo "Password: $ARGO_PWD" >> argocd-access.txt
 
-    - name: 'Wait for ArgoCD Components'
-      run: |
-        echo "Waiting for ArgoCD components to be ready..."
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
+    # - name: 'Wait for ArgoCD Components'
+    #   run: |
+    #     echo "Waiting for ArgoCD components to be ready..."
+    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
+    #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
 
     - name: 'Verify ArgoCD Installation'
       run: |
