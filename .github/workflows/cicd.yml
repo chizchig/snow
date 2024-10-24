@@ -248,17 +248,147 @@ jobs:
         
         echo "Application manifest applied. Check the ArgoCD UI for sync status."
 
-    - name: 'Display Access Instructions'
+        - name: 'Apply Application Manifest'
+        run: |
+          echo "Applying ArgoCD application from repository..."
+          kubectl apply -f overlay/dev/argocd.yml
+          echo "Application manifest applied. Check the ArgoCD UI for sync status."
+  
+    - name: 'Setup Auto Access'
       run: |
-        echo "ArgoCD is now accessible via:"
-        echo "1. NodePort: https://$(minikube ip):$(kubectl get svc argocd-server -n argocd -o jsonpath='{.spec.ports[0].nodePort}')"
-        echo "2. Port Forward: https://localhost:8080"
-        echo ""
-        echo "Login Credentials:"
+        # Create auto-access script
+        cat << 'EOF' > argocd-auto-access.sh
+        #!/bin/bash
+        
+        echo "Setting up ArgoCD access..."
+        
+        # Function to cleanup background processes
+        cleanup() {
+          echo "Cleaning up..."
+          kill $(jobs -p) 2>/dev/null
+          exit 0
+        }
+        
+        # Setup cleanup trap
+        trap cleanup EXIT INT TERM
+        
+        # Start minikube tunnel
+        echo "Starting minikube tunnel..."
+        minikube tunnel &
+        sleep 5
+        
+        # Start port forwarding
+        echo "Setting up port forwarding..."
+        kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+        sleep 3
+        
+        # Get login credentials
+        PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+        
+        # Create auto-login HTML
+        cat << HTML > argocd-login.html
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>ArgoCD Auto Login</title>
+            <script>
+                async function autoLogin() {
+                    const loginForm = document.createElement('form');
+                    loginForm.method = 'POST';
+                    loginForm.action = 'https://localhost:8080/auth/login';
+                    
+                    const username = document.createElement('input');
+                    username.type = 'hidden';
+                    username.name = 'username';
+                    username.value = 'admin';
+                    
+                    const password = document.createElement('input');
+                    password.type = 'hidden';
+                    password.name = 'password';
+                    password.value = '${PASSWORD}';
+                    
+                    loginForm.appendChild(username);
+                    loginForm.appendChild(password);
+                    document.body.appendChild(loginForm);
+                    
+                    loginForm.submit();
+                }
+                window.onload = autoLogin;
+            </script>
+        </head>
+        <body>
+            <h2>Connecting to ArgoCD...</h2>
+        </body>
+        </html>
+        HTML
+        
+        # Display access information
+        echo "================================================"
+        echo "ArgoCD Access Information"
+        echo "================================================"
+        echo "Access URL: https://localhost:8080"
         echo "Username: admin"
-        echo "Password: $ARGO_PWD"
+        echo "Password: $PASSWORD"
         echo ""
-        echo "Important Notes:"
-        echo "1. Use HTTPS, not HTTP"
-        echo "2. Accept the self-signed certificate warning"
-        echo "3. Password is case-sensitive"
+        echo "Auto-login page has been created!"
+        echo "================================================"
+        
+        # Keep the script running
+        echo "Services are running. Press Ctrl+C to stop..."
+        while true; do sleep 1; done
+        EOF
+        
+        chmod +x argocd-auto-access.sh
+
+    - name: 'Create Access Documentation'
+      run: |
+        cat << EOF > README-ARGOCD-ACCESS.md
+        # ArgoCD Quick Access Guide
+
+        ## Automatic Access Setup
+        1. Download and extract the \`argocd-auto-access\` artifact
+        2. Open a terminal and run:
+            \`\`\`bash
+            ./argocd-auto-access.sh
+            \`\`\`
+        3. Open \`argocd-login.html\` in your browser
+        
+        ## Manual Access (if needed)
+        - URL: https://localhost:8080
+        - Username: admin
+        - Password: $ARGO_PWD
+
+        ## Important Notes
+        - Keep the terminal running while using ArgoCD
+        - Use HTTPS, not HTTP
+        - Accept any self-signed certificate warnings
+        
+        ## Troubleshooting
+        If you cannot access ArgoCD:
+        1. Ensure the script is running
+        2. Check that ports 8080 is not in use
+        3. Try accessing manually with the credentials above
+        EOF
+
+    - name: 'Upload Auto-Access Package'
+      uses: actions/upload-artifact@v4
+      with:
+        name: argocd-auto-access
+        path: |
+          argocd-auto-access.sh
+          argocd-login.html
+          README-ARGOCD-ACCESS.md
+        retention-days: 5
+
+    - name: 'Display Final Instructions'
+      run: |
+        echo "==================================================="
+        echo "ArgoCD Deployment Complete!"
+        echo "==================================================="
+        echo "To access ArgoCD:"
+        echo "1. Download the 'argocd-auto-access' artifact"
+        echo "2. Run: ./argocd-auto-access.sh"
+        echo "3. Open argocd-login.html in your browser"
+        echo ""
+        echo "For detailed instructions, see README-ARGOCD-ACCESS.md"
+        echo "==================================================="
