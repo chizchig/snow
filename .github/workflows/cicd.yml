@@ -105,6 +105,8 @@ jobs:
         ARGOCD_HOST=$(minikube service argocd-server -n argocd --url | head -n 1)
         echo "ArgoCD URL: $ARGOCD_HOST"
         echo "ARGOCD_HOST=$ARGOCD_HOST" >> $GITHUB_ENV
+
+        kubectl get secret argocd-initial-admin-secret -n argocd
         
         # Get admin password
         ARGO_PWD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
