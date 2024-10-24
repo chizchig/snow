@@ -111,6 +111,7 @@ jobs:
         echo "ArgoCD admin password: $ARGO_PWD"
         echo "ARGO_PWD=$ARGO_PWD" >> $GITHUB_ENV
         
+        
         # Save access information to file
         echo "ArgoCD Access Information:" > argocd-access.txt
         echo "Web UI URL: $ARGOCD_HOST" >> argocd-access.txt
