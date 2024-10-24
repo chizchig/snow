@@ -8,10 +8,10 @@ spec:
   source:
     repoURL: https://github.com/chizchig/snow.git
     targetRevision: HEAD
-    path: resource/dev
+    path: overlay/dev
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: dev-namespace
+    namespace: dev
   syncPolicy:
     automated:
       selfHeal: true
