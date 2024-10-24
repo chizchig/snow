@@ -125,6 +125,17 @@ jobs:
     #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
     #     kubectl wait --for=condition=available --timeout=300s deployment/argocd-application-controller -n argocd
 
+    - name: 'Setup ArgoCD Access'
+      run: |
+        # Change service type to NodePort for better access
+        kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
+        
+        # Get the NodePort
+        NODE_PORT=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.spec.ports[0].nodePort}')
+        
+        # Setup tunnel in background
+        nohup minikube tunnel &
+
     - name: 'Verify ArgoCD Installation'
       run: |
         echo "Verifying ArgoCD installation..."
